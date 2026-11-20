@@ -8,7 +8,9 @@ from inventree_apns.parse import (
     derive_attributes,
     normalise_dielectric,
     normalise_package,
+    parse_qualification,
     parse_quantity,
+    parse_temperature_range,
 )
 
 
@@ -123,3 +125,34 @@ def test_derive_attributes_leaves_plain_numbers_alone():
     assert derive_attributes('Screw M2x5 Phillips') == {}
     assert derive_attributes('Header 2x10 2.54 pitch') == {}
     assert derive_attributes('', None) == {}
+
+
+def test_parse_qualification():
+    assert parse_qualification('AEC-Q200') == (frozenset({'AEC-Q200', 'AUTOMOTIVE'}), None)
+    assert parse_qualification('aec q200') == (frozenset({'AEC-Q200', 'AUTOMOTIVE'}), None)
+    assert parse_qualification('Automotive, AEC-Q100 Grade 1') == (frozenset({'AEC-Q100', 'AUTOMOTIVE'}), 1)
+    assert parse_qualification('Automotive') == (frozenset({'AUTOMOTIVE'}), None)
+    assert parse_qualification('MIL-PRF-55342') == (frozenset({'MIL-PRF-55342'}), None)
+    # A parameter named for the qualification, with a yes/no value
+    assert parse_qualification('Yes', 'AEC-Q200') == (frozenset({'AEC-Q200', 'AUTOMOTIVE'}), None)
+    assert parse_qualification('No', 'AEC-Q200') == (frozenset(), None)
+
+    for nothing in ('', '-', 'Commercial', 'Standard', None):
+        assert parse_qualification(nothing) == (frozenset(), None)
+
+
+def test_parse_temperature_range():
+    assert parse_temperature_range('-55°C ~ 125°C') == (-55, 125)
+    assert parse_temperature_range('-40 to +85 °C') == (-40, 85)
+    assert parse_temperature_range('0°C ~ 70°C (TA)') == (0, 70)
+    assert parse_temperature_range('-40°C...+105°C') == (-40, 105)
+    assert parse_temperature_range('−55 ~ 155') == (-55, 155)
+    assert parse_temperature_range('125°C') is None
+    assert parse_temperature_range('Surface Mount') is None
+
+
+def test_derive_attributes_qualification():
+    assert derive_attributes('CAP 100nF 50V X7R 0603 AEC-Q200')['qualification'] == 'AEC-Q200'
+    assert derive_attributes('LDO 3.3V automotive AEC-Q100 grade 1')['qualification'] == 'AEC-Q100 Grade 1'
+    # The word alone is too loose to read out of a description
+    assert 'qualification' not in derive_attributes('Automotive connector 2 pin')

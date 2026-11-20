@@ -32,7 +32,9 @@ from .parse import (
     derive_attributes,
     normalise_dielectric,
     normalise_package,
+    parse_qualification,
     parse_quantity,
+    parse_temperature_range,
 )
 
 # How much each kind of attribute counts
@@ -69,7 +71,7 @@ class Role:
     label: str
     level: str = 'minor'  # critical / major / minor
     direction: str = 'equal'  # equal / higher / lower (which way is better)
-    kind: str = 'auto'  # number / package / dielectric / text / auto
+    kind: str = 'auto'  # number / package / dielectric / qualification / range / text / auto
     unit: str = ''
     # A different number rules the part out as an alternate (output voltage,
     # number of pins), although the attribute is not one of the known ones
@@ -86,6 +88,10 @@ ROLES = {
         Role('value', 'Value', 'critical', 'equal', 'auto'),
         Role('package', 'Package', 'critical', 'equal', 'package'),
         Role('dielectric', 'Dielectric', 'major', 'equal', 'dielectric'),
+        # A qualified part can replace an unqualified one, not the reverse
+        Role('qualification', 'Qualification', 'major', 'higher', 'qualification'),
+        # A wider operating range can replace a narrower one
+        Role('temperature', 'Operating temperature', 'major', 'higher', 'range'),
         Role('tolerance', 'Tolerance', 'major', 'lower', 'number', '%'),
         Role('voltage', 'Voltage rating', 'major', 'higher', 'number', 'V'),
         Role('power', 'Power rating', 'major', 'higher', 'number', 'W'),
@@ -133,6 +139,14 @@ _NAME_RULES: list[tuple[str, re.Pattern]] = [
             r'|^temp(erature)? ?co(efficient)?$',
         ),
         ('mounting', r'^mount(ing)?( type| style)?$'),
+        (
+            'qualification',
+            r'^qualifications?$|^ratings?$|^grade$|^automotive( grade| qualified)?$|^aec\b|^aec q',
+        ),
+        (
+            'temperature',
+            r'^operating temp(erature)?( range)?$|^temp(erature)? range$|^working temp(erature)?( range)?$',
+        ),
     )
 ]
 
@@ -142,7 +156,7 @@ _IGNORED = re.compile(
     r'|datasheet|url|link|sku|mpn|part number|manufacturer|supplier|lcsc|jlc|jlcpcb'
     r'|packaging|package qty|standard package|base product|series|price|cost|note'
     r'|notes|comment|weight|height|length|width|thickness|dimension|dimensions'
-    r'|seated|stock|grade|qualification|features)\b'
+    r'|seated|stock|features)\b'
 )
 
 # Other parameters which usually have to be the same
@@ -275,6 +289,24 @@ def make_attr(key: str, label: str, text, unit: str = '', numeric=None, derived=
 
         return Attr(key, spec.label, display, None, normalise_name(text), derived)
 
+    if spec.kind == 'qualification':
+        stated, grade = parse_qualification(text, label)
+
+        # 'No', '-', 'Commercial': nothing is claimed, which is the same as
+        # the parameter not being there
+        if not stated:
+            return None
+
+        return Attr(key, spec.label, display, None, qualification_norm(stated, grade), derived)
+
+    if spec.kind == 'range':
+        limits = parse_temperature_range(text)
+
+        if limits is None:
+            return Attr(f'p:{normalise_name(label)}', label, display, None, normalise_name(text), derived)
+
+        return Attr(key, spec.label, display, None, f'{limits[0]:g}|{limits[1]:g}', derived)
+
     quantity = None
 
     if spec.kind in ('number', 'auto'):
@@ -297,6 +329,21 @@ def make_attr(key: str, label: str, text, unit: str = '', numeric=None, derived=
             return Attr(role.key, role.label, display, quantity, '', derived)
 
     return Attr(key, spec.label, display, quantity, normalise_name(text), derived)
+
+
+def qualification_norm(stated, grade) -> str:
+    """'AEC-Q100+AUTOMOTIVE|1': the qualifications, and the grade if given."""
+    return '+'.join(sorted(stated)) + ('' if grade is None else f'|{grade}')
+
+
+def _qualification(norm: str) -> tuple[frozenset, Optional[int]]:
+    names, _, grade = norm.partition('|')
+
+    return frozenset(filter(None, names.split('+'))), int(grade) if grade else None
+
+
+# Shown for the part which states no qualification
+NO_QUALIFICATION = 'None stated'
 
 
 def build_features(
@@ -372,7 +419,7 @@ def build_features(
             if key in attrs:
                 continue
 
-            if not passive and key != 'package':
+            if not passive and key not in ('package', 'qualification'):
                 continue
 
             # A value read from the text is only trusted if nothing else
@@ -421,6 +468,39 @@ def compare_attr(spec: Role, a: Attr, b: Attr) -> tuple[float, str]:
     Returns (score from 0 to 1, verdict). The verdict is one of: match,
     better, close, worse, differ.
     """
+    if spec.kind == 'qualification':
+        wanted, wanted_grade = _qualification(a.norm)
+        offered, offered_grade = _qualification(b.norm)
+
+        # Every qualification of the part has to be held by its replacement
+        if not wanted <= offered:
+            return 0.0, 'worse'
+
+        # AEC-Q100 grades: 0 is the widest temperature range
+        if wanted_grade is not None and offered_grade is not None and offered_grade > wanted_grade:
+            return 0.0, 'worse'
+
+        if wanted == offered and wanted_grade == offered_grade:
+            return 1.0, 'match'
+
+        if wanted == offered and offered_grade is None:
+            # The same qualification, with no grade given for the replacement
+            return 1.0, 'match'
+
+        return BETTER, 'better'
+
+    if spec.kind == 'range' and '|' in a.norm and '|' in b.norm:
+        low, high = (float(item) for item in a.norm.split('|'))
+        other_low, other_high = (float(item) for item in b.norm.split('|'))
+
+        if abs(low - other_low) <= 0.5 and abs(high - other_high) <= 0.5:
+            return 1.0, 'match'
+
+        if other_low <= low + 0.5 and other_high >= high - 0.5:
+            return BETTER, 'better'
+
+        return 0.0, 'worse'
+
     if a.quantity and b.quantity and (
         a.quantity.unit == b.quantity.unit or not a.quantity.unit or not b.quantity.unit
     ):
@@ -581,6 +661,14 @@ def compare(a: PartFeatures, b: PartFeatures, force: bool = False) -> Optional[M
             'b': right.text if right else None,
             'derived': derived,
         }
+
+        if key == 'qualification' and (left is None or right is None):
+            # Stating no qualification is not the same as an unknown value:
+            # the part is taken to have none, so it cannot stand in for one
+            # which has
+            nothing = Attr(key, spec.label, NO_QUALIFICATION)
+            left, right = left or nothing, right or nothing
+            row['a'], row['b'] = left.text, right.text
 
         if left is None or right is None:
             row['verdict'] = 'missing'

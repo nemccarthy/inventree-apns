@@ -41,6 +41,11 @@ def test_parameter_names_map_to_roles():
     assert role_for('Power (Watts)') == 'power'
     assert role_for('Temperature Coefficient') == 'dielectric'
     assert role_for('Tolerance') == 'tolerance'
+    assert role_for('Qualification') == 'qualification'
+    assert role_for('Ratings') == 'qualification'
+    assert role_for('Grade') == 'qualification'
+    assert role_for('AEC-Q200') == 'qualification'
+    assert role_for('Operating Temperature') == 'temperature'
     # Not a rating: has to be compared as it is
     assert role_for('Voltage - Output') == 'p:voltage output'
     # Says nothing about interchangeability
@@ -269,3 +274,78 @@ def test_every_parameter_is_listed_in_the_comparison():
     # They come after the compared attributes, and flip with the rest
     assert [row['verdict'] for row in match.rows][-4:] == ['info'] * 4
     assert {row['label']: (row['a'], row['b']) for row in match.flipped().rows}['Series'] == (None, 'CL')
+
+
+def test_a_qualified_part_can_replace_an_unqualified_one():
+    plain = cap(1)
+    automotive = cap(2, Qualification='AEC-Q200')
+    match = compare(plain, automotive)
+
+    assert match.direction == 'forward'
+    row = next(row for row in match.rows if row['key'] == 'qualification')
+    assert (row['a'], row['b'], row['verdict']) == ('None stated', 'AEC-Q200', 'better')
+
+    # And not the reverse
+    back = compare(automotive, plain)
+    assert back.direction == 'reverse'
+    assert verdicts(back)['qualification'] == 'worse'
+
+
+def test_the_same_qualification_is_interchangeable():
+    match = compare(cap(1, Ratings='AEC-Q200'), cap(2, Qualification='aec q200'))
+
+    assert match.direction == 'both'
+    assert verdicts(match)['qualification'] == 'match'
+    # Parts which state none are not affected
+    assert 'qualification' not in verdicts(compare(cap(1), cap(2)))
+
+
+def test_a_value_which_claims_nothing_is_no_qualification():
+    match = compare(cap(1, Grade='-'), cap(2, Qualification='Commercial'))
+
+    assert match.direction == 'both'
+    assert 'qualification' not in verdicts(match)
+
+
+def test_qualified_but_worse_elsewhere_is_no_alternative():
+    # AEC-Q200 but a lower voltage rating: neither can replace the other
+    assert compare(cap(1, voltage='50V'), cap(2, voltage='16V', Qualification='AEC-Q200')) is None
+
+
+def test_aec_q100_grades():
+    def ic(pk, grade):
+        return part(pk, name='LDO 3.3V', Package='SOT-23-5', Voltage___Output='3.3V', Qualification=grade)
+
+    # Grade 1 (-40 to 125) can replace grade 2 (-40 to 105), not the reverse
+    match = compare(ic(1, 'AEC-Q100 Grade 2'), ic(2, 'AEC-Q100 Grade 1'))
+    assert match.direction == 'forward'
+    assert compare(ic(1, 'AEC-Q100 Grade 1'), ic(2, 'AEC-Q100 Grade 1')).direction == 'both'
+    # An AEC part can replace one only marked automotive
+    assert compare(ic(1, 'Automotive'), ic(2, 'AEC-Q100')).direction == 'forward'
+
+
+def test_qualification_is_read_from_the_description():
+    described = part(1, name='CAP 100nF 16V X7R 0402 10% AEC-Q200')
+    match = compare(cap(2), described)
+
+    assert match.direction == 'forward'
+    assert described.attrs['qualification'].derived
+
+
+def test_a_wider_temperature_range_can_replace_a_narrower_one():
+    narrow = cap(1, Operating_Temperature='-40°C ~ 85°C')
+    wide = cap(2, Operating_Temperature='-55°C ~ 125°C')
+
+    match = compare(narrow, wide)
+    assert match.direction == 'forward'
+    assert verdicts(match)['temperature'] == 'better'
+    assert compare(wide, narrow).direction == 'reverse'
+    assert compare(wide, cap(3, Operating_Temperature='-55 to +125 °C')).direction == 'both'
+
+    # Neither range covers the other
+    assert compare(cap(1, Operating_Temperature='-40°C ~ 105°C'), cap(2, Operating_Temperature='-25°C ~ 125°C')) is None
+
+    # An unknown range is unknown, not a failure
+    unknown = compare(wide, cap(4))
+    assert unknown.direction == 'both'
+    assert verdicts(unknown)['temperature'] == 'missing'

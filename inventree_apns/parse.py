@@ -5,6 +5,7 @@ Plain Python, with no Django or InvenTree imports.
 - parse_quantity: '100nF', '0.1 µF', '4k7', '±1%', '1/16W' -> a number in the
   base unit, with the unit
 - normalise_package / normalise_dielectric: one spelling for the same thing
+- parse_qualification / parse_temperature_range: 'AEC-Q200', '-55°C ~ 125°C'
 - derive_attributes: pick value, package, tolerance, voltage... out of a part
   name and description, for parts which have no parameters filled in
 """
@@ -304,6 +305,65 @@ def normalise_dielectric(text) -> str:
     return 'C0G' if code == 'NP0' else code
 
 
+_AEC = re.compile(r'AEC[\s\-]?Q[\s\-]?(\d{3})', re.IGNORECASE)
+_AEC_GRADE = re.compile(r'grade[\s\-]?([0-4])\b', re.IGNORECASE)
+_MIL = re.compile(r'\bMIL[\s\-]?(PRF|STD|DTL|R|C)[\s\-]?(\d{2,6})', re.IGNORECASE)
+_AUTOMOTIVE = re.compile(r'\bautomotive\b', re.IGNORECASE)
+_YES = re.compile(r'^(yes|y|true|1|qualified|compliant)$', re.IGNORECASE)
+
+
+def parse_qualification(text, name: str = '') -> tuple[frozenset, Optional[int]]:
+    """The qualifications a value states, and the AEC-Q100 grade if one is given.
+
+    'AEC-Q200' -> ({'AEC-Q200', 'AUTOMOTIVE'}, None)
+    'Automotive, AEC-Q100 Grade 1' -> ({'AEC-Q100', 'AUTOMOTIVE'}, 1)
+    'MIL-PRF-55342' -> ({'MIL-PRF-55342'}, None)
+    '-', 'No', 'Commercial' -> (empty, None)
+
+    'name' is the name of the parameter: a parameter called 'AEC-Q200' with
+    the value 'Yes' states that qualification.
+    """
+    text = str(text or '')
+
+    if _YES.match(text.strip()):
+        text = str(name or '')
+
+    found = {f'AEC-Q{number}' for number in _AEC.findall(text)}
+    found |= {f'MIL-{kind.upper()}-{number}' for kind, number in _MIL.findall(text)}
+
+    if found & {item for item in found if item.startswith('AEC')} or _AUTOMOTIVE.search(text):
+        # An AEC-Q part is an automotive part
+        found.add('AUTOMOTIVE')
+
+    grade = _AEC_GRADE.search(text)
+
+    return frozenset(found), int(grade.group(1)) if grade and found else None
+
+
+_RANGE = re.compile(
+    r'([+\-\u2212]?\s?\d+(?:\.\d+)?)\s*°?\s*[CK]?\s*(?:~|to|\.\.\.?|\u2026|/|\u2013|\u2014|-(?=\s*[+\d]))\s*'
+    r'([+\-\u2212]?\s?\d+(?:\.\d+)?)\s*°?\s*C?',
+    re.IGNORECASE,
+)
+
+
+def parse_temperature_range(text) -> Optional[tuple[float, float]]:
+    """'-55°C ~ 125°C', '-40 to +85 °C', '0°C ~ 70°C (TA)' -> (low, high)."""
+    match = _RANGE.search(str(text or ''))
+
+    if not match:
+        return None
+
+    try:
+        low, high = (
+            float(item.replace('\u2212', '-').replace(' ', '').replace('+', '')) for item in match.groups()
+        )
+    except ValueError:
+        return None
+
+    return (low, high) if low < high else None
+
+
 # Which attribute a quantity found in a description belongs to, by its unit
 _UNIT_ROLES = {
     'F': 'capacitance',
@@ -337,6 +397,12 @@ def derive_attributes(*texts) -> dict[str, str]:
 
     if dielectric:
         found['dielectric'] = dielectric
+
+    qualifications, grade = parse_qualification(text)
+
+    if any(item.startswith(('AEC', 'MIL')) for item in qualifications):
+        stated = sorted(item for item in qualifications if item != 'AUTOMOTIVE')
+        found['qualification'] = ', '.join(stated) + (f' Grade {grade}' if grade is not None else '')
 
     chip = _CHIP.search(text)
     ic = _IC_PACKAGE.search(text)

@@ -78,6 +78,7 @@ def test_map_parameters_adds_keeps_and_creates():
         {'name': 'Operating Temperature', 'value': '-55°C ~ 125°C', 'source': 'digikey'},
         {'name': 'Tolerance', 'value': '±0.25pF', 'source': 'digikey'},
         {'name': 'RoHS Status', 'value': 'ROHS3 Compliant', 'source': 'digikey'},
+        {'name': 'Ratings', 'value': 'AEC-Q200', 'source': 'digikey'},
         # A second source for something already found is left out
         {'name': 'Capacitance', 'value': '100nF', 'source': 'description'},
     ]
@@ -90,11 +91,14 @@ def test_map_parameters_adds_keeps_and_creates():
     assert proposals['Voltage Rating']['value'] == '16 V'
     assert proposals['Package']['action'] == 'keep'
     assert proposals['Package']['current'] == '0402'
-    assert proposals['Operating Temperature']['action'] == 'create'
-    assert proposals['Operating Temperature']['units'] == ''
+    assert proposals['Operating temperature']['action'] == 'create'
+    assert proposals['Operating temperature']['units'] == ''
+    assert proposals['Operating temperature']['value'] == '-55°C ~ 125°C'
     assert proposals['Tolerance']['action'] == 'skip'
     assert 'RoHS Status' not in proposals
-    assert len(proposals) == 5
+    # DigiKey's 'Ratings' is where it puts AEC-Q200
+    assert (proposals['Qualification']['action'], proposals['Qualification']['value']) == ('create', 'AEC-Q200')
+    assert len(proposals) == 6
 
 
 def test_map_parameters_without_creating_templates():

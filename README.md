@@ -59,6 +59,8 @@ Each part is reduced to a set of attributes, taken from its parameters:
 | Dielectric | Should be the same; a difference lowers the match. |
 | Tolerance, temperature coefficient (ppm), ESR | Lower is better. |
 | Voltage, power and current rating | Higher is better. |
+| Qualification (AEC-Q100/101/200, MIL, "Automotive") | A qualified part can replace one which states no qualification, not the reverse. A part which states none is taken to have none. For AEC-Q100, a lower grade number (wider temperature range) can replace a higher one. |
+| Operating temperature range | A wider range can replace a narrower one. |
 | Parameters such as *Voltage - Output*, number of pins, colour, type | Must be the same if both are numbers; otherwise a difference lowers the match. |
 | Any other parameter | Compared as it is; a difference lowers the match a little. |
 | RoHS, packaging, series, lifecycle, dimensions and the like | Not used for matching. Listed in the comparison under *Other fields*. |
@@ -66,7 +68,7 @@ Each part is reduced to a set of attributes, taken from its parameters:
 Parameters are recognised by their name, so `Package`, `Package / Case`,
 `Footprint` and `Supplier Device Package` are all the package, and
 `Voltage Rating`, `Voltage - Rated` and `Rated Voltage` are all the voltage
-rating. Values are compared whatever the notation: `100nF`, `0.1 µF` and
+rating, and `Qualification`, `Ratings` and `Grade` are the qualification. Values are compared whatever the notation: `100nF`, `0.1 µF` and
 `100n` are the same capacitance, `0402` and `0402 (1005 Metric)` the same
 package, `C0G` and `NP0` the same dielectric.
 
@@ -90,7 +92,7 @@ Three more things are used:
 
 - **Names and descriptions.** Where a parameter is missing, the value,
   package, tolerance, ratings and dielectric are read out of the name and
-  description (`CAP 100nF 16V X7R 0402 10%`). This counts for less than a real
+  description (`CAP 100nF 16V X7R 0402 10% AEC-Q200`). This counts for less than a real
   parameter and is marked *from text* in the comparison. Ratings are only read
   this way for parts which have a value: `3.3V` in the description of a
   regulator is not a rating.

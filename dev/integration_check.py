@@ -78,6 +78,7 @@ def main(base: str, token: str, worker: bool = True):
     c5 = parts['CAP 1uF 16V X5R 0402']
     c6 = parts['CAP 100nF 16V X7R 0603']
     c7 = parts['CAP CER 0.1uF 16V X7R 0402 10%']
+    c8 = parts['CAP 100nF 16V X7R 0402 AEC-Q200']
     r1 = parts['RES 10k 1% 0402 Yageo']
     r2 = parts['RES 10k 5% 0402']
     r3 = parts['RES 10k 1% 0402 UniOhm']
@@ -115,8 +116,20 @@ def main(base: str, token: str, worker: bool = True):
     check('the part is used on two BOM lines', view['bom_lines'] == 2 and {item['assembly'] for item in view['usage']} == {a1, a2})
     check('nothing is pending before any link', view['pending'] == 0)
 
+    qualified = {row['key']: row for row in found.get(c8, {}).get('rows', [])}.get('qualification', {})
+    check(
+        'an AEC-Q200 part can replace the unqualified one',
+        found.get(c8, {}).get('direction') == 'forward'
+        and (qualified.get('a'), qualified.get('b'), qualified.get('verdict')) == ('None stated', 'AEC-Q200', 'better'),
+        str(found.get(c8, {}).get('direction')) + ' ' + str(qualified),
+    )
+    back = {item['other']: item['direction'] for item in api.part(c8)['candidates']}
+    check('and cannot be replaced by it', back.get(c1) == 'reverse' and back.get(c2) == 'reverse', str(back))
+
     rows = {row['key']: row for row in found[c3]['rows']}
     check('the comparison shows why it is one-way', rows['voltage']['verdict'] == 'better' and rows['capacitance']['verdict'] == 'match')
+    listed = {row['label'] for row in found[c3]['rows'] if row['verdict'] == 'info'}
+    check('parts which state no qualification are not compared on it', 'qualification' not in rows and listed == set(), str(listed))
     check('values match whatever the notation', {row['key']: row['verdict'] for row in found[c2]['rows']}['capacitance'] == 'match')
 
     view = api.part(r2)

@@ -66,6 +66,7 @@ def main(base: str, token: str) -> dict:
             ('Power', 'W'),
             ('Voltage - Output', 'V'),
             ('Current - Output', 'A'),
+            ('Qualification', ''),
         )
     }
 
@@ -110,7 +111,7 @@ def main(base: str, token: str) -> dict:
 
         return pk
 
-    def cap(key, name, maker, mpn, value='100nF', package='0402', voltage='16V', tolerance='10%', dielectric='X7R', **kwargs):
+    def cap(key, name, maker, mpn, value='100nF', package='0402', voltage='16V', tolerance='10%', dielectric='X7R', qualification=None, **kwargs):
         return part(
             key,
             name,
@@ -123,18 +124,23 @@ def main(base: str, token: str) -> dict:
                 'Voltage Rating': voltage,
                 'Tolerance': tolerance,
                 'Dielectric': dielectric,
+                **({'Qualification': qualification} if qualification else {}),
             },
             **kwargs,
         )
 
     # Capacitors: C1 and C2 are the same from two makers, C3 has a higher
-    # voltage rating, C4 a poorer dielectric, C5 and C6 are different parts
+    # voltage rating, C4 a poorer dielectric, C5 and C6 are different parts,
+    # C8 is AEC-Q200 qualified
     cap('C1', 'CAP 100nF 16V X7R 0402 Samsung', 'Samsung', 'CL05B104KO5NNNC', stock=4200)
     cap('C2', 'CAP 100nF 16V X7R 0402 Murata', 'Murata', 'GRM155R71C104KA88D', value='0.1 uF', stock=900)
     cap('C3', 'CAP 100nF 50V X7R 0402', 'Murata', 'GRM155R71H104KE14D', voltage='50V', stock=150)
     cap('C4', 'CAP 100nF 16V Y5V 0402', 'Yageo', 'CC0402ZRY5V7BB104', dielectric='Y5V', tolerance='20%')
     cap('C5', 'CAP 1uF 16V X5R 0402', 'Samsung', 'CL05A105KO5NNNC', value='1uF', dielectric='X5R', stock=2500)
     cap('C6', 'CAP 100nF 16V X7R 0603', 'Samsung', 'CL10B104KO8NNNC', package='0603', stock=800)
+
+    # The automotive version of C1: it can replace C1, C1 cannot replace it
+    cap('C8', 'CAP 100nF 16V X7R 0402 AEC-Q200', 'Murata', 'GCM155R71C104KA55D', qualification='AEC-Q200', stock=400)
 
     # No parameters at all: only a description, and an LCSC number
     part('C7', 'CAP CER 0.1uF 16V X7R 0402 10%', 'Capacitors', 'Generic MLCC', sku='C1525', stock=300)

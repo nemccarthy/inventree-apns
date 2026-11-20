@@ -20,6 +20,9 @@ First release. Built and tested against InvenTree 1.7.3.
   missing on other BOMs
 - Parameters filled in from DigiKey, LCSC and part descriptions
 - Overview page and an Alternatives panel on part pages
+- Qualification (AEC-Q, MIL, automotive grade) and operating temperature
+  range are matched on: a qualified or wider-range part can replace one which
+  is not, and not the reverse
 - Comparison of two parts lists every field of both, not only the ones used
   for matching; parts are headed by manufacturer and MPN; two-way and one-way
   link buttons on every candidate
