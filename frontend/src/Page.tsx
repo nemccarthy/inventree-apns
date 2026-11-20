@@ -44,7 +44,8 @@ import {
   PartName,
   Stock,
   StrengthBadge,
-  numCell
+  numCell,
+  partTitle
 } from './ui';
 
 const TAB_KEY = 'inventree-apns-tab';
@@ -124,7 +125,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(apiError(err, 'Could not load the alternates'));
+          setError(apiError(err, 'Could not load the alternatives'));
         }
       })
       .finally(() => {
@@ -229,7 +230,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
 
   if (!data) {
     return error ? (
-      <Alert color='red' title='Could not load the alternates' m='md'>
+      <Alert color='red' title='Could not load the alternatives' m='md'>
         {error}
       </Alert>
     ) : (
@@ -268,7 +269,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
           <Table.Td>
             <DirectionBadge
               direction={entry.direction}
-              labels={{ forward: 'Can be replaced by', reverse: 'Can replace', both: 'Interchangeable with' }}
+              labels={{ forward: 'Can be replaced by', reverse: 'Can replace', both: 'Interchangeable' }}
             />
           </Table.Td>
           <Table.Td>
@@ -278,7 +279,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
               note={
                 entry.substitute_on > 0 ? (
                   <Tooltip label={`Already set by hand as a substitute on ${plural(entry.substitute_on, 'BOM line', 'BOM lines')}`}>
-                    <Badge size='xs' color='violet' variant='light'>
+                    <Badge size='xs' color='violet' variant='light' style={{ flexShrink: 0, minWidth: 'max-content' }}>
                       On {plural(entry.substitute_on, 'BOM', 'BOMs')}
                     </Badge>
                   </Tooltip>
@@ -307,7 +308,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
           <Table.Tr>
             <Table.Td />
             <Table.Td colSpan={8}>
-              <CompareTable rows={entry.rows} left={a?.name ?? 'First part'} right={b?.name ?? 'Second part'} />
+              <CompareTable rows={entry.rows} left={partTitle(a) ?? 'First part'} right={partTitle(b) ?? 'Second part'} a={a} b={b} />
             </Table.Td>
           </Table.Tr>
         )}
@@ -319,7 +320,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
     <Stack gap='md' p='md'>
       <Group justify='space-between' align='flex-end'>
         <Stack gap={0}>
-          <Title order={3}>Alternate parts</Title>
+          <Title order={3}>Alternative parts</Title>
           <Text size='sm' c='dimmed'>
             {summary.eligible} of {plural(summary.parts, 'part', 'parts')} compared. Read{' '}
             {fmtDateTime(data.generated)}.
@@ -341,7 +342,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
       {actions.message && <Alert color='teal'>{actions.message}</Alert>}
 
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }}>
-        <Kpi label='Links' value={String(summary.links)} hint='Pairs of parts linked as alternates' />
+        <Kpi label='Links' value={String(summary.links)} hint='Pairs of parts linked as alternatives' />
         <Kpi
           label='Candidates'
           value={String(summary.candidates)}
@@ -420,7 +421,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
             {candidates.length === 0 ? (
               <Text size='sm' c='dimmed'>
                 {data.candidates.length === 0
-                  ? 'No two parts match closely enough to be alternates. Parts are matched on their parameters: see the Part data tab for parts which have too few.'
+                  ? 'No two parts match closely enough to be alternatives. Parts are matched on their parameters: see the Part data tab for parts which have too few.'
                   : 'No candidates match the filter.'}
               </Text>
             ) : (
@@ -459,7 +460,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
           {data.links.length === 0 ? (
             <Text size='sm' c='dimmed'>
               No parts are linked yet. Link pairs from the Candidates tab, or from the
-              Alternates panel of a part.
+              Alternatives panel of a part.
             </Text>
           ) : (
             <Table verticalSpacing='xs' highlightOnHover>
@@ -468,7 +469,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
                   <Table.Th />
                   <Table.Th>Part</Table.Th>
                   <Table.Th />
-                  <Table.Th>Alternate</Table.Th>
+                  <Table.Th>Alternative</Table.Th>
                   <Table.Th>Match</Table.Th>
                   <Table.Th>Note</Table.Th>
                   <Table.Th />
@@ -494,7 +495,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
                         <Table.Td>
                           <DirectionBadge
                             direction={entry.relation}
-                            labels={{ forward: 'Can be replaced by', both: 'Interchangeable with' }}
+                            labels={{ forward: 'Can be replaced by', both: 'Interchangeable' }}
                           />
                         </Table.Td>
                         <Table.Td>
@@ -503,7 +504,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
                         <Table.Td>
                           <Group gap={6}>
                             {entry.match?.direction === 'none' ? (
-                              <Tooltip label='The parameters of the two parts say they are not alternates. Open the comparison to see where they differ.'>
+                              <Tooltip label='The parameters of the two parts say they are not alternatives. Open the comparison to see where they differ.'>
                                 <Badge color='red' variant='outline'>
                                   Check
                                 </Badge>
@@ -555,11 +556,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
                         <Table.Tr>
                           <Table.Td />
                           <Table.Td colSpan={6}>
-                            <CompareTable
-                              rows={entry.match?.rows}
-                              left={a?.name ?? 'Part'}
-                              right={b?.name ?? 'Alternate'}
-                            />
+                            <CompareTable rows={entry.match?.rows} left={partTitle(a) ?? 'Part'} right={partTitle(b) ?? 'Alternative'} a={a} b={b} />
                           </Table.Td>
                         </Table.Tr>
                       )}
@@ -589,7 +586,7 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
               </Group>
               <Text size='sm' c='dimmed'>
                 Every link is copied to the BOM lines of its part as a substitute, so that
-                build orders and stock checks can use the alternate.{' '}
+                build orders and stock checks can use the alternative.{' '}
                 {data.settings.auto_sync
                   ? 'This happens as soon as a link changes.'
                   : 'Automatic updates are turned off in the plugin settings, so this only happens when you sync.'}{' '}

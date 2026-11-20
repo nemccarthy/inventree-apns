@@ -1,4 +1,4 @@
-"""API views for the Alternate Parts plugin.
+"""API views for the Alternative Parts plugin.
 
 All endpoints are served below /plugin/apns/ and accept session or token
 authentication, so they can also be used from scripts.
@@ -20,7 +20,7 @@ def _plugin():
     plugin = registry.get_plugin(store.SLUG)
 
     if plugin is None:
-        raise NotFound('The Alternate Parts plugin is not active')
+        raise NotFound('The Alternative Parts plugin is not active')
 
     return plugin
 

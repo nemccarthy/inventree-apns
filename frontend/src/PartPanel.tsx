@@ -37,10 +37,11 @@ import {
   SectionTitle,
   Stock,
   StrengthBadge,
-  numCell
+  numCell,
+  partTitle
 } from './ui';
 
-/** Alternates panel on a part page */
+/** Alternatives panel on a part page */
 export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginContext }>) {
   const api = useRef(context.api);
   api.current = context.api;
@@ -82,7 +83,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(apiError(err, 'Could not load the alternates of this part'));
+          setError(apiError(err, 'Could not load the alternatives of this part'));
         }
       })
       .finally(() => {
@@ -103,7 +104,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
 
   if (!data) {
     return error ? (
-      <Alert color='red' title='Could not load the alternates'>
+      <Alert color='red' title='Could not load the alternatives'>
         {error}
       </Alert>
     ) : (
@@ -135,7 +136,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
             <Group gap={6}>
               <DirectionBadge direction={entry.relation} />
               {disagree && (
-                <Tooltip label='The parameters of the two parts say they are not alternates. Open the comparison to see where they differ.'>
+                <Tooltip label='The parameters of the two parts say they are not alternatives. Open the comparison to see where they differ.'>
                   <Badge color='red' variant='outline'>
                     Check
                   </Badge>
@@ -204,7 +205,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
           <Table.Tr>
             <Table.Td />
             <Table.Td colSpan={5}>
-              <CompareTable rows={entry.match?.rows} left='This part' right={other?.name ?? 'Other part'} />
+              <CompareTable rows={entry.match?.rows} left='This part' right={partTitle(other) ?? 'Other part'} a={me} b={other} />
             </Table.Td>
           </Table.Tr>
         )}
@@ -234,7 +235,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
                   <Tooltip
                     label={`Set by hand as a substitute for this part on ${plural(entry.substitute_on, 'BOM line', 'BOM lines')}, out of ${data.bom_lines}`}
                   >
-                    <Badge size='xs' color='violet' variant='light'>
+                    <Badge size='xs' color='violet' variant='light' style={{ flexShrink: 0, minWidth: 'max-content' }}>
                       On {plural(entry.substitute_on, 'BOM', 'BOMs')}
                     </Badge>
                   </Tooltip>
@@ -277,7 +278,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
           <Table.Tr>
             <Table.Td />
             <Table.Td colSpan={5}>
-              <CompareTable rows={entry.rows} left='This part' right={other?.name ?? 'Other part'} />
+              <CompareTable rows={entry.rows} left='This part' right={partTitle(other) ?? 'Other part'} a={me} b={other} />
             </Table.Td>
           </Table.Tr>
         )}
@@ -291,7 +292,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
     <Stack gap='lg'>
       <Group justify='space-between'>
         <Text size='sm' c='dimmed'>
-          {plural(data.links.length, 'linked alternate', 'linked alternates')},{' '}
+          {plural(data.links.length, 'linked alternative', 'linked alternatives')},{' '}
           {plural(data.candidates.length, 'candidate', 'candidates')}, used on{' '}
           {plural(data.bom_lines, 'BOM line', 'BOM lines')}.
         </Text>
@@ -299,7 +300,7 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
           <AppLink context={context} to={`/plugin/${slug}/overview`}>
             <Group gap={4} wrap='nowrap'>
               <IconArrowsExchange size={14} />
-              All alternates
+              All alternatives
             </Group>
           </AppLink>
           <Button
@@ -343,10 +344,10 @@ export function ApnsPartPanel({ context }: Readonly<{ context: InvenTreePluginCo
       )}
 
       <Stack gap='xs'>
-        <SectionTitle count={data.links.length}>Alternates</SectionTitle>
+        <SectionTitle count={data.links.length}>Alternatives</SectionTitle>
         {data.links.length === 0 ? (
           <Text size='sm' c='dimmed'>
-            No alternates are linked to this part yet. Link one of the candidates below.
+            No alternatives are linked to this part yet. Link one of the candidates below.
           </Text>
         ) : (
           <Table verticalSpacing='xs'>

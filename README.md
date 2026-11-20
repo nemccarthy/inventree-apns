@@ -1,26 +1,26 @@
-# InvenTree Alternate Parts
+# InvenTree Alternative Parts
 
 [![CI](https://github.com/nemccarthy/inventree-apns/actions/workflows/ci.yaml/badge.svg)](https://github.com/nemccarthy/inventree-apns/actions/workflows/ci.yaml)
 
-Alternate part numbers for [InvenTree](https://inventree.org).
+Alternative part numbers for [InvenTree](https://inventree.org).
 
 The plugin compares the parameters of your parts, ranks the parts which could
 stand in for each other, and lets you **link them one-way or two-way**. Every
 link is then copied to the BOM lines of its part as a substitute, so build
-orders and stock checks can use the alternate on every BOM, not only the one
+orders and stock checks can use the alternative on every BOM, not only the one
 where somebody remembered to add it.
 
 Built and tested against **InvenTree 1.7.3** (API 570).
 
 ![Ranked candidates, with the comparison of one pair](https://raw.githubusercontent.com/nemccarthy/inventree-apns/main/docs/images/candidates.png)
 
-![The Alternates panel on a part page](https://raw.githubusercontent.com/nemccarthy/inventree-apns/main/docs/images/part-panel.png)
+![The Alternatives panel on a part page](https://raw.githubusercontent.com/nemccarthy/inventree-apns/main/docs/images/part-panel.png)
 
 ## What you get
 
-- **Alternates** in the main navigation bar, which opens the overview page
+- **Alternatives** in the main navigation bar, which opens the overview page
   (`/web/plugin/apns/overview`)
-- an **Alternates** panel on every part page
+- an **Alternatives** panel on every part page
 
 The overview has five tabs:
 
@@ -41,6 +41,11 @@ A link says that one part can be used in place of another.
 - **One-way**: only one of them can replace the other. A 50 V capacitor can
   replace a 16 V one, and a 1% resistor a 5% one, but not the reverse.
 
+Every candidate has both a **Two-way** and a **One-way** button. The one the
+comparison suggests is highlighted: two-way when nothing favours either part,
+one-way when one of them is better on a rating or tolerance. Either can be
+used whatever the suggestion, and One-way asks which way round.
+
 Links are not chained. If B can replace A and C can replace B, C does not
 replace A unless you link those two as well.
 
@@ -56,7 +61,7 @@ Each part is reduced to a set of attributes, taken from its parameters:
 | Voltage, power and current rating | Higher is better. |
 | Parameters such as *Voltage - Output*, number of pins, colour, type | Must be the same if both are numbers; otherwise a difference lowers the match. |
 | Any other parameter | Compared as it is; a difference lowers the match a little. |
-| RoHS, packaging, series, lifecycle, dimensions and the like | Ignored. |
+| RoHS, packaging, series, lifecycle, dimensions and the like | Not used for matching. Listed in the comparison under *Other fields*. |
 
 Parameters are recognised by their name, so `Package`, `Package / Case`,
 `Footprint` and `Supplier Device Package` are all the package, and
@@ -68,6 +73,14 @@ package, `C0G` and `NP0` the same dielectric.
 A part which is better on a "higher is better" or "lower is better" attribute
 gives a **one-way** suggestion, and ranks just below a like-for-like part. If each part is better on one attribute and
 worse on another, neither can replace the other and the pair is not offered.
+
+Opening a row shows the two parts side by side: first the attributes they
+are matched on, with the result for each, then every other field of both
+parts (name, IPN, description, manufacturer part numbers, category and all
+remaining parameters).
+
+Parts are listed by manufacturer and MPN, with the part name below; a part
+with no MPN is listed by its name.
 
 **Match strength** runs from 0 to 100. It is the weighted share of the
 compared attributes which agree, reduced when attributes are known for only
@@ -102,7 +115,7 @@ whose part is A. A two-way link also puts A on every BOM line for B.
 - Substitutes the plugin adds are marked in their metadata. Only those are
   removed again when a link goes away. **A substitute which was added by hand
   is never changed.**
-- An alternate which is inactive, or is not a component, is not added.
+- An alternative which is inactive, or is not a component, is not added.
 - InvenTree does not count substitutes as a change to the BOM, so a validated
   BOM stays validated. Locked assemblies are updated too, unless *Leave
   locked assemblies alone* is turned on.
@@ -181,9 +194,9 @@ In *Admin Center → Plugin Settings*:
 2. Turn on **Enable interface integration** (allows plugins to add pages,
    panels and navigation items).
 3. Turn on **Enable event integration** if new BOM lines should pick up the
-   alternates of their part by themselves. Without it they are picked up by
+   alternatives of their part by themselves. Without it they are picked up by
    the next sync.
-4. In the plugin list, find **Alternate Parts** and activate it.
+4. In the plugin list, find **Alternative Parts** and activate it.
 
 ### 3. Copy the plugin's files (Docker)
 
@@ -203,7 +216,7 @@ after every update of the plugin.
 | --- | --- |
 | *Page Not Found - This page does not exist* | The plugin is not active, or **Enable interface integration** is off |
 | *Failed to load module: .../static/plugins/apns/Apns.js* | The plugin's files have not been copied: run step 3 |
-| *The Alternate Parts API was not found* | **Enable URL integration** is off |
+| *The Alternative Parts API was not found* | **Enable URL integration** is off |
 
 ## Settings
 
@@ -211,7 +224,7 @@ after every update of the plugin.
 | --- | --- | --- |
 | Weakest candidate to show (%) | 60 | Candidates below this strength are left out |
 | Read values from names and descriptions | on | |
-| Look for alternates of assemblies | off | |
+| Look for alternatives of assemblies | off | |
 | Include inactive parts | off | As candidates, and as BOM substitutes |
 | Update BOMs when a link changes | on | Off: only when Sync is pressed |
 | Leave locked assemblies alone | off | |

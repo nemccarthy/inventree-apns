@@ -558,7 +558,7 @@ def apply(pk: int, proposals: list[dict], user=None, only=None) -> dict:
                         template = ParameterTemplate(
                             name=proposal['template_name'],
                             units=proposal.get('units') or '',
-                            description='Added by the Alternate Parts plugin',
+                            description='Added by the Alternative Parts plugin',
                         )
                         template.full_clean()
                         template.save()

@@ -1,7 +1,7 @@
 import type { SyncResult } from './types';
 
 const NO_API =
-  'The Alternate Parts API was not found. Turn on "Enable URL integration" in the InvenTree plugin settings, then restart the server.';
+  'The Alternative Parts API was not found. Turn on "Enable URL integration" in the InvenTree plugin settings, then restart the server.';
 
 /**
  * Return the data of an API response, checking that it really is a plugin result.

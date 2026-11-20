@@ -18,9 +18,7 @@ import {
   IconArrowsExchange,
   IconChevronDown,
   IconChevronRight,
-  IconDots,
-  IconEyeOff,
-  IconLink
+  IconEyeOff
 } from '@tabler/icons-react';
 import type { CSSProperties, ReactNode } from 'react';
 
@@ -70,7 +68,10 @@ export function AppLink({
   );
 }
 
-/** Part name, linked to the part page, with its IPN and first MPN */
+/**
+ * A part, linked to its page: the manufacturer and MPN first, with the part
+ * name (and IPN) below. A part with no MPN is shown by its name.
+ */
 export function PartName({
   context,
   part,
@@ -85,14 +86,23 @@ export function PartName({
   }
 
   const mpn = part.mpns?.[0];
-  const details = [part.ipn, mpn ? `${mpn.manufacturer} ${mpn.mpn}`.trim() : ''].filter(Boolean);
+  const number = mpn ? `${mpn.manufacturer} ${mpn.mpn}`.trim() : '';
+  const more = (part.mpns?.length ?? 0) - 1;
+  const below = number ? [part.name, part.ipn].filter(Boolean) : [part.ipn].filter(Boolean);
 
   return (
     <Stack gap={0}>
       <Group gap={6} wrap='nowrap'>
         <AppLink context={context} to={partUrl(part.pk)} title={part.description}>
-          {part.name}
+          {number || part.name}
         </AppLink>
+        {more > 0 && (
+          <Tooltip label={(part.mpns ?? []).slice(1).map((item) => `${item.manufacturer} ${item.mpn}`.trim()).join(', ')}>
+            <Badge size='xs' color='gray' variant='light'>
+              +{more}
+            </Badge>
+          </Tooltip>
+        )}
         {part.active === false && (
           <Badge size='xs' color='gray' variant='light'>
             Inactive
@@ -100,13 +110,20 @@ export function PartName({
         )}
         {note}
       </Group>
-      {details.length > 0 && (
+      {below.length > 0 && (
         <Text size='xs' c='dimmed'>
-          {details.join(' · ')}
+          {below.join(' · ')}
         </Text>
       )}
     </Stack>
   );
+}
+
+/** What a part is headed by: its manufacturer and MPN, or its name */
+export function partTitle(part: PartLabel | undefined): string | undefined {
+  const mpn = part?.mpns?.[0];
+
+  return mpn ? `${mpn.manufacturer} ${mpn.mpn}`.trim() : part?.name;
 }
 
 export function Stock({ part }: Readonly<{ part: PartLabel | undefined }>) {
@@ -182,7 +199,7 @@ export function DirectionBadge({
     ) : undefined;
 
   return (
-    <Badge color={info.color} variant='light' leftSection={icon} style={{ flexShrink: 0 }}>
+    <Badge color={info.color} variant='light' leftSection={icon} style={{ flexShrink: 0, minWidth: 'max-content' }}>
       {labels?.[direction] ?? info.label}
     </Badge>
   );
@@ -194,62 +211,121 @@ const VERDICT: Record<Verdict, { label: string; color: string }> = {
   close: { label: 'Close', color: 'yellow' },
   worse: { label: 'Worse', color: 'orange' },
   differ: { label: 'Differs', color: 'red' },
-  missing: { label: 'Unknown', color: 'gray' }
+  missing: { label: 'Unknown', color: 'gray' },
+  info: { label: 'Not compared', color: 'gray' }
 };
 
-/** The attribute by attribute comparison of two parts */
+function detailRows(a: PartLabel | undefined, b: PartLabel | undefined): CompareRow[] {
+  const numbers = (part: PartLabel | undefined) =>
+    (part?.mpns ?? []).map((item) => `${item.manufacturer} ${item.mpn}`.trim()).join(', ') || null;
+
+  const rows: [string, string | null, string | null][] = [
+    ['Name', a?.name || null, b?.name || null],
+    ['IPN', a?.ipn || null, b?.ipn || null],
+    ['Description', a?.description || null, b?.description || null],
+    ['Manufacturer part number', numbers(a), numbers(b)],
+    ['Category', a?.category_name || null, b?.category_name || null]
+  ];
+
+  return rows
+    .filter(([, left, right]) => left !== null || right !== null)
+    .map(([label, left, right]) => ({
+      key: `d:${label}`,
+      label,
+      level: 'info',
+      a: left,
+      b: right,
+      derived: false,
+      verdict: 'info'
+    }));
+}
+
+/**
+ * Two parts side by side: the attributes they are matched on with the result
+ * for each, then every other parameter and the details of each part.
+ */
 export function CompareTable({
   rows,
   left,
-  right
-}: Readonly<{ rows: CompareRow[] | undefined; left: string; right: string }>) {
-  if (!rows || rows.length === 0) {
-    return (
-      <Text size='sm' c='dimmed'>
-        Neither part has parameters to compare. Add parameters to both parts for a
-        proper comparison.
-      </Text>
-    );
-  }
+  right,
+  a,
+  b
+}: Readonly<{
+  rows: CompareRow[] | undefined;
+  left: string;
+  right: string;
+  a?: PartLabel;
+  b?: PartLabel;
+}>) {
+  const compared = (rows ?? []).filter((row) => row.verdict !== 'info');
+  const listed = [...detailRows(a, b), ...(rows ?? []).filter((row) => row.verdict === 'info')];
+
+  const line = (row: CompareRow) => (
+    <Table.Tr key={row.key}>
+      <Table.Td>
+        <Group gap={6} wrap='nowrap'>
+          <Text size='sm' fw={row.level === 'critical' ? 600 : undefined} c={row.level === 'info' ? 'dimmed' : undefined}>
+            {row.label}
+          </Text>
+          {row.derived && (
+            <Tooltip label='Read from the name or description, not from a parameter'>
+              <Badge size='xs' color='gray' variant='outline'>
+                from text
+              </Badge>
+            </Tooltip>
+          )}
+        </Group>
+      </Table.Td>
+      <Table.Td>{row.a ?? <Text c='dimmed'>-</Text>}</Table.Td>
+      <Table.Td>{row.b ?? <Text c='dimmed'>-</Text>}</Table.Td>
+      <Table.Td style={{ textAlign: 'right' }}>
+        {row.verdict !== 'info' && (
+          <Badge size='sm' color={VERDICT[row.verdict].color} variant='light'>
+            {VERDICT[row.verdict].label}
+          </Badge>
+        )}
+      </Table.Td>
+    </Table.Tr>
+  );
 
   return (
     <Paper withBorder p='xs'>
       <Table verticalSpacing={4} horizontalSpacing='sm' fz='sm'>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Attribute</Table.Th>
-            <Table.Th>{left}</Table.Th>
-            <Table.Th>{right}</Table.Th>
+            <Table.Th w='22%'>Matched on</Table.Th>
+            <Table.Th w='34%'>{left}</Table.Th>
+            <Table.Th w='34%'>{right}</Table.Th>
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.key}>
-              <Table.Td>
-                <Group gap={6} wrap='nowrap'>
-                  <Text size='sm' fw={row.level === 'critical' ? 600 : undefined}>
-                    {row.label}
-                  </Text>
-                  {row.derived && (
-                    <Tooltip label='Read from the name or description, not from a parameter'>
-                      <Badge size='xs' color='gray' variant='outline'>
-                        from text
-                      </Badge>
-                    </Tooltip>
-                  )}
-                </Group>
-              </Table.Td>
-              <Table.Td>{row.a ?? <Text c='dimmed'>-</Text>}</Table.Td>
-              <Table.Td>{row.b ?? <Text c='dimmed'>-</Text>}</Table.Td>
-              <Table.Td style={{ textAlign: 'right' }}>
-                <Badge size='sm' color={VERDICT[row.verdict].color} variant='light'>
-                  {VERDICT[row.verdict].label}
-                </Badge>
+          {compared.length === 0 && (
+            <Table.Tr>
+              <Table.Td colSpan={4}>
+                <Text size='sm' c='dimmed'>
+                  Neither part has a parameter the matching can use. Add the value, package
+                  and ratings to both parts for a proper comparison.
+                </Text>
               </Table.Td>
             </Table.Tr>
-          ))}
+          )}
+          {compared.map(line)}
         </Table.Tbody>
+        {listed.length > 0 && (
+          <>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th colSpan={4}>
+                  <Text size='xs' c='dimmed' tt='uppercase' fw={600} pt='xs'>
+                    Other fields (not used for matching)
+                  </Text>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>{listed.map(line)}</Table.Tbody>
+          </>
+        )}
       </Table>
     </Paper>
   );
@@ -276,7 +352,8 @@ export function ExpandButton({
 export type LinkChoice = 'both' | 'forward' | 'reverse';
 
 /**
- * Link a candidate: the suggested way as a button, the other ways in a menu.
+ * Link a candidate, two-way or one-way. Both are always offered; the one the
+ * comparison suggests is highlighted.
  *
  * 'forward' means the other part can replace this one.
  */
@@ -296,50 +373,68 @@ export function LinkActions({
   onDismiss?: () => void;
 }>) {
   const choice: LinkChoice = suggested === 'none' ? 'forward' : suggested;
+  const oneWay = choice !== 'both';
 
-  const labels: Record<LinkChoice, string> = {
-    both: 'Two-way: interchangeable',
-    forward: `One-way: ${otherName} can replace ${thisName}`,
-    reverse: `One-way: ${thisName} can replace ${otherName}`
+  const labels: Record<'forward' | 'reverse', string> = {
+    forward: `${otherName} can replace ${thisName}`,
+    reverse: `${thisName} can replace ${otherName}`
   };
 
   return (
     <Group gap={4} wrap='nowrap' justify='flex-end'>
-      <Tooltip label={labels[choice]} multiline maw={320}>
+      <Tooltip
+        label={
+          oneWay
+            ? 'Link as interchangeable. The comparison suggests one-way: one part is better on a rating or tolerance.'
+            : 'Link as interchangeable: suggested, as nothing in the comparison favours either part.'
+        }
+        multiline
+        maw={320}
+      >
         <Button
           size='compact-sm'
-          variant='light'
-          leftSection={<IconLink size={14} />}
+          variant={oneWay ? 'default' : 'light'}
           loading={busy}
-          onClick={() => onLink(choice)}
+          onClick={() => onLink('both')}
         >
-          {choice === 'both' ? 'Link two-way' : 'Link one-way'}
+          Two-way
         </Button>
       </Tooltip>
       <Menu position='bottom-end' withinPortal>
         <Menu.Target>
-          <ActionIcon variant='subtle' color='gray' aria-label='More ways to link' disabled={busy}>
-            <IconDots size={16} />
-          </ActionIcon>
+          <Button
+            size='compact-sm'
+            variant={oneWay ? 'light' : 'default'}
+            rightSection={<IconChevronDown size={12} />}
+            disabled={busy}
+            aria-label='Link one-way'
+          >
+            One-way
+          </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Label>Link as</Menu.Label>
-          {(['both', 'forward', 'reverse'] as LinkChoice[]).map((option) => (
+          <Menu.Label>Which way round?</Menu.Label>
+          {(['forward', 'reverse'] as const).map((option) => (
             <Menu.Item key={option} onClick={() => onLink(option)}>
               {labels[option]}
               {option === choice ? ' (suggested)' : ''}
             </Menu.Item>
           ))}
-          {onDismiss && (
-            <>
-              <Menu.Divider />
-              <Menu.Item leftSection={<IconEyeOff size={14} />} onClick={onDismiss}>
-                Not an alternate: hide it
-              </Menu.Item>
-            </>
-          )}
         </Menu.Dropdown>
       </Menu>
+      {onDismiss && (
+        <Tooltip label='Not an alternative: hide it'>
+          <ActionIcon
+            variant='subtle'
+            color='gray'
+            aria-label='Not an alternative: hide it'
+            disabled={busy}
+            onClick={onDismiss}
+          >
+            <IconEyeOff size={16} />
+          </ActionIcon>
+        </Tooltip>
+      )}
     </Group>
   );
 }

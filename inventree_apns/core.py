@@ -1,4 +1,4 @@
-"""Alternate Parts plugin for InvenTree.
+"""Alternative Parts plugin for InvenTree.
 
 Finds parts which could stand in for each other by comparing their
 parameters, lets you link them one-way or two-way, and keeps the substitutes
@@ -18,13 +18,13 @@ BOM_EVENTS = ('part_bomitem.created', 'part_bomitem.saved')
 
 
 class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, InvenTreePlugin):
-    """Alternate part numbers for InvenTree."""
+    """Alternative part numbers for InvenTree."""
 
     # Plugin metadata
-    TITLE = 'Alternate Parts'
-    NAME = 'Alternate Parts'
+    TITLE = 'Alternative Parts'
+    NAME = 'Alternative Parts'
     SLUG = 'apns'
-    DESCRIPTION = 'Find, link and use alternate parts: ranked candidates, one-way and two-way links, BOM substitutes kept in step'
+    DESCRIPTION = 'Find, link and use alternative parts: ranked candidates, one-way and two-way links, BOM substitutes kept in step'
     VERSION = PLUGIN_VERSION
 
     AUTHOR = 'EdgeMachines'
@@ -48,7 +48,7 @@ class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, Inven
             'default': True,
         },
         'INCLUDE_ASSEMBLIES': {
-            'name': 'Look for alternates of assemblies',
+            'name': 'Look for alternatives of assemblies',
             'description': 'Off: only parts which are not assemblies are offered as candidates',
             'validator': bool,
             'default': False,
@@ -106,13 +106,13 @@ class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, Inven
         },
         'SHOW_NAVIGATION': {
             'name': 'Show in the navigation bar',
-            'description': 'Add an Alternates link to the main navigation bar',
+            'description': 'Add an Alternatives link to the main navigation bar',
             'validator': bool,
             'default': True,
         },
         'SHOW_PART_PANEL': {
             'name': 'Show on part pages',
-            'description': 'Add an Alternates panel to part pages',
+            'description': 'Add an Alternatives panel to part pages',
             'validator': bool,
             'default': True,
         },
@@ -174,7 +174,7 @@ class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, Inven
         return [
             {
                 'key': 'apns-overview',
-                'title': 'Alternate Parts',
+                'title': 'Alternative Parts',
                 'source': self.plugin_static_file(f'{FRONTEND}:renderApnsPage'),
                 'options': {'path': 'overview'},
             }
@@ -188,14 +188,14 @@ class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, Inven
         return [
             {
                 'key': 'apns-overview',
-                'title': 'Alternates',
+                'title': 'Alternatives',
                 'icon': 'ti:arrows-exchange:outline',
                 'options': {'url': f'plugin/{self.SLUG}/overview'},
             }
         ]
 
     def get_ui_panels(self, request, context: dict, **kwargs):
-        """Add the Alternates panel to part pages."""
+        """Add the Alternatives panel to part pages."""
         context = context or {}
 
         if context.get('target_model') != 'part':
@@ -212,8 +212,8 @@ class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, Inven
         return [
             {
                 'key': 'apns',
-                'title': 'Alternates',
-                'description': 'Alternate parts, candidates and the BOMs they apply to',
+                'title': 'Alternatives',
+                'description': 'Alternative parts, candidates and the BOMs they apply to',
                 'icon': 'ti:arrows-exchange:outline',
                 'source': self.plugin_static_file(f'{FRONTEND}:renderApnsPartPanel'),
                 'context': {'part_id': part_id, 'slug': self.SLUG},

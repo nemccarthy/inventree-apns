@@ -21,12 +21,13 @@ export interface PartLabel {
  */
 export type Direction = 'both' | 'forward' | 'reverse' | 'none';
 
-export type Verdict = 'match' | 'better' | 'close' | 'worse' | 'differ' | 'missing';
+/** 'info' marks a parameter which is listed but not used for matching */
+export type Verdict = 'match' | 'better' | 'close' | 'worse' | 'differ' | 'missing' | 'info';
 
 export interface CompareRow {
   key: string;
   label: string;
-  level: 'critical' | 'major' | 'minor';
+  level: 'critical' | 'major' | 'minor' | 'info';
   a: string | null;
   b: string | null;
   derived: boolean;

@@ -322,7 +322,13 @@ def overview_payload(plugin, use_cache: bool = True) -> dict:
 
     ranked = sorted(
         candidates.values(),
-        key=lambda item: (-item['strength'], -item.get('coverage', 0), item['part'], item['other']),
+        key=lambda item: (
+            -item['strength'],
+            item.get('direction') != 'both',
+            -item.get('coverage', 0),
+            item['part'],
+            item['other'],
+        ),
     )[:MAX_CANDIDATES]
 
     for entry in ranked:

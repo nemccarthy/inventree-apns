@@ -29,7 +29,7 @@ def cap(pk, value='100nF', package='0402', voltage='16V', tolerance='10%', diele
 
 
 def verdicts(match):
-    return {row['key']: row['verdict'] for row in match.rows}
+    return {row['key']: row['verdict'] for row in match.rows if row['verdict'] != 'info'}
 
 
 def test_parameter_names_map_to_roles():
@@ -248,3 +248,24 @@ def test_resistors_with_a_tighter_tolerance():
     assert match.direction == 'forward'
     assert verdicts(match)['resistance'] == 'match'
     assert verdicts(match)['power'] == 'match'
+
+
+def test_every_parameter_is_listed_in_the_comparison():
+    one = cap(1, RoHS_Status='Compliant', Series='CL', Supplier_Device_Package='0402')
+    two = cap(2, RoHS_Status='Compliant', Height='0.5mm')
+    match = compare(one, two)
+    shown = {row['label']: (row['a'], row['b']) for row in match.rows if row['verdict'] == 'info'}
+
+    assert shown == {
+        'Height': (None, '0.5mm'),
+        'RoHS Status': ('Compliant', 'Compliant'),
+        'Series': ('CL', None),
+        # A second parameter for the package: listed, not compared twice
+        'Supplier Device Package': ('0402', None),
+    }
+    # Listing them does not change the match
+    assert match.strength == compare(cap(1), cap(2)).strength
+    assert match.direction == 'both'
+    # They come after the compared attributes, and flip with the rest
+    assert [row['verdict'] for row in match.rows][-4:] == ['info'] * 4
+    assert {row['label']: (row['a'], row['b']) for row in match.flipped().rows}['Series'] == (None, 'CL')

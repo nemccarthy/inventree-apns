@@ -218,6 +218,8 @@ class Attr:
     quantity: Optional[Quantity] = None
     norm: str = ''
     derived: bool = False
+    # The name of the parameter it was taken from
+    source: str = ''
 
 
 @dataclass
@@ -236,6 +238,9 @@ class PartFeatures:
     numbers: frozenset = frozenset()
     norm_name: str = ''
     active: bool = True
+    # Parameters which are shown in a comparison but not compared:
+    # {parameter name: value}
+    extras: dict = field(default_factory=dict)
 
 
 def make_attr(key: str, label: str, text, unit: str = '', numeric=None, derived=False) -> Optional[Attr]:
@@ -311,11 +316,21 @@ def build_features(
     'parameters' is a list of {'name', 'data', 'units', 'numeric'}.
     """
     attrs: dict[str, Attr] = {}
+    extras: dict[str, str] = {}
+
+    def shown(parameter) -> None:
+        name = str(parameter.get('name') or '').strip()
+        value = str(parameter.get('data') or '').strip()
+        units = str(parameter.get('units') or '')
+
+        if name and value:
+            extras[name] = value if not units or value.lower().endswith(units.lower()) else f'{value} {units}'
 
     for parameter in parameters:
         key = role_for(parameter.get('name'))
 
         if key is None:
+            shown(parameter)
             continue
 
         attr = make_attr(
@@ -333,8 +348,18 @@ def build_features(
 
         # Two parameters for the same thing ('Package / Case' and 'Supplier
         # Device Package'): keep the one which reads as a known value
-        if existing is None or (existing.quantity is None and attr.quantity is not None):
+        attr.source = str(parameter.get('name') or '').strip()
+
+        if existing is None:
             attrs[attr.key] = attr
+        elif existing.quantity is None and attr.quantity is not None:
+            # The one which reads as a known value is compared; the other is shown
+            if existing.source:
+                extras[existing.source] = existing.text
+
+            attrs[attr.key] = attr
+        else:
+            shown(parameter)
 
     if use_description:
         derived = derive_attributes(name, description)
@@ -379,6 +404,7 @@ def build_features(
         numbers=frozenset(token for token in tokens if any(char.isdigit() for char in token)),
         norm_name=norm_name,
         active=active,
+        extras=extras,
     )
 
 
@@ -590,6 +616,18 @@ def compare(a: PartFeatures, b: PartFeatures, force: bool = False) -> Optional[M
 
         row['verdict'] = verdict
         rows.append(row)
+
+    # Every other parameter of either part is listed, without being compared
+    for name in sorted(set(a.extras) | set(b.extras), key=str.lower):
+        rows.append({
+            'key': f'x:{normalise_name(name)}',
+            'label': name,
+            'level': 'info',
+            'a': a.extras.get(name),
+            'b': b.extras.get(name),
+            'derived': False,
+            'verdict': 'info',
+        })
 
     if same_mpn:
         # The same manufacturer part number is the same part, whatever the

@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventree-apns"
-description = "Alternate part numbers for InvenTree: ranked candidates, one-way and two-way links, BOM substitutes kept in step"
+description = "Alternative part numbers for InvenTree: ranked candidates, one-way and two-way links, BOM substitutes kept in step"
 dynamic = ["version"]
 authors = [
     { name = "EdgeMachines" },
 ]
 readme = "README.md"
 license = "MIT"
-keywords = ["inventree", "plugin", "alternates", "substitutes", "bom"]
+keywords = ["inventree", "plugin", "alternatives", "substitutes", "bom"]
 requires-python = ">=3.9"
 dependencies = []
 classifiers = [
