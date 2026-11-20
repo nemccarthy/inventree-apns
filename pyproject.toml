@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inventree-apns"
+description = "Alternate part numbers for InvenTree: ranked candidates, one-way and two-way links, BOM substitutes kept in step"
+dynamic = ["version"]
+authors = [
+    { name = "EdgeMachines" },
+]
+readme = "README.md"
+license = "MIT"
+keywords = ["inventree", "plugin", "alternates", "substitutes", "bom"]
+requires-python = ">=3.9"
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Framework :: InvenTree",
+]
+
+[project.urls]
+Homepage = "https://github.com/nemccarthy/inventree-apns"
+Repository = "https://github.com/nemccarthy/inventree-apns"
+Issues = "https://github.com/nemccarthy/inventree-apns/issues"
+Changelog = "https://github.com/nemccarthy/inventree-apns/blob/main/CHANGELOG.md"
+
+[project.entry-points."inventree_plugins"]
+ApnsPlugin = "inventree_apns.core:ApnsPlugin"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["inventree_apns*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "inventree_apns.PLUGIN_VERSION"}
