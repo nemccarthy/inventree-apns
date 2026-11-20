@@ -59,7 +59,7 @@ Each part is reduced to a set of attributes, taken from its parameters:
 | Dielectric | Should be the same; a difference lowers the match. |
 | Tolerance, temperature coefficient (ppm), ESR | Lower is better. |
 | Voltage, power and current rating | Higher is better. |
-| Qualification (AEC-Q100/101/200, MIL, "Automotive") | A qualified part can replace one which states no qualification, not the reverse. A part which states none is taken to have none. For AEC-Q100, a lower grade number (wider temperature range) can replace a higher one. |
+| Qualification (AEC-Q100/101/200, MIL, "Automotive") | A difference lowers the match and does not decide the direction: an AEC-Q200 part and an unqualified one are still offered as a pair, some points weaker, with the comparison showing which is qualified. A part which states no qualification is taken to have none. With *Hold to qualifications* turned on it is treated like a rating instead: a qualified part can replace an unqualified one (and a lower AEC-Q100 grade number a higher one), never the reverse. |
 | Operating temperature range | A wider range can replace a narrower one. |
 | Parameters such as *Voltage - Output*, number of pins, colour, type | Must be the same if both are numbers; otherwise a difference lowers the match. |
 | Any other parameter | Compared as it is; a difference lowers the match a little. |
@@ -228,6 +228,7 @@ after every update of the plugin.
 | Read values from names and descriptions | on | |
 | Look for alternatives of assemblies | off | |
 | Include inactive parts | off | As candidates, and as BOM substitutes |
+| Hold to qualifications | off | Off: a different qualification only lowers the match. On: a qualified part can replace an unqualified one, never the reverse |
 | Update BOMs when a link changes | on | Off: only when Sync is pressed |
 | Leave locked assemblies alone | off | |
 | Create parameter templates | on | When adding parameters from a supplier |

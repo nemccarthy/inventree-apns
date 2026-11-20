@@ -59,6 +59,9 @@ TEXT_CLOSE = 0.8
 NAME_ONLY_FACTOR = 0.7
 NAME_ONLY_MINIMUM = 0.75
 
+# What a different qualification scores, when it is not held to strictly
+QUALIFICATION_DIFFERS = 0.5
+
 # Groups larger than this are not searched pair by pair
 MAX_GROUP = 400
 
@@ -625,12 +628,18 @@ class Match:
         )
 
 
-def compare(a: PartFeatures, b: PartFeatures, force: bool = False) -> Optional[Match]:
+def compare(
+    a: PartFeatures, b: PartFeatures, force: bool = False, strict_qualification: bool = False
+) -> Optional[Match]:
     """Compare two parts. Returns None if neither can replace the other.
 
     With 'force', a comparison is always returned (for two parts which are
     already linked): its direction is 'none' if the attributes say that
     neither part can replace the other.
+
+    A difference in qualification (AEC-Q200 against none) lowers the strength
+    and leaves the direction alone. With 'strict_qualification' it is held to
+    like a rating: the qualified part can replace the other, not the reverse.
     """
     if a.pk == b.pk:
         return None
@@ -678,6 +687,13 @@ def compare(a: PartFeatures, b: PartFeatures, force: bool = False) -> Optional[M
         score, verdict = compare_attr(spec, left, right)
         back_score, back_verdict = compare_attr(spec, right, left)
 
+        # A qualification which differs counts against the match both ways,
+        # without saying which part can replace which
+        lenient = key == 'qualification' and not strict_qualification and verdict != 'match'
+
+        if lenient:
+            score = back_score = QUALIFICATION_DIFFERS
+
         compared += weight
         forward += weight * score
         reverse += weight * back_score
@@ -696,10 +712,10 @@ def compare(a: PartFeatures, b: PartFeatures, force: bool = False) -> Optional[M
             if spec.strict and verdict == 'differ' and left.quantity and right.quantity:
                 block_forward = block_reverse = True
 
-        if verdict == 'worse':
+        if verdict == 'worse' and not lenient:
             block_forward = True
 
-        if back_verdict == 'worse':
+        if back_verdict == 'worse' and not lenient:
             block_reverse = True
 
         row['verdict'] = verdict
@@ -792,8 +808,9 @@ class Catalogue:
     """All the parts, indexed so that likely matches are found without
     comparing every part with every other part."""
 
-    def __init__(self, parts: Iterable[PartFeatures]):
+    def __init__(self, parts: Iterable[PartFeatures], strict_qualification: bool = False):
         self.parts: dict[int, PartFeatures] = {part.pk: part for part in parts}
+        self.strict_qualification = strict_qualification
         # {(role, value bucket): {package: parts}}
         self._values: dict = defaultdict(dict)
         self._categories: dict = defaultdict(set)
@@ -889,7 +906,7 @@ class Catalogue:
         """Compare two parts by their keys."""
         a, b = self.parts.get(part), self.parts.get(other)
 
-        return compare(a, b) if a and b else None
+        return compare(a, b, strict_qualification=self.strict_qualification) if a and b else None
 
     def candidates(self, pk: int, minimum: int = 0, limit: int = 50, exclude: Iterable[int] = ()) -> list[Match]:
         """Parts which could replace this part or be replaced by it, strongest first."""
@@ -905,7 +922,7 @@ class Catalogue:
             if other in skip:
                 continue
 
-            match = compare(part, self.parts[other])
+            match = compare(part, self.parts[other], strict_qualification=self.strict_qualification)
 
             if match and match.strength >= minimum:
                 found.append(match)
@@ -924,7 +941,7 @@ class Catalogue:
                 if other <= part.pk or (part.pk, other) in skip:
                     continue
 
-                match = compare(part, self.parts[other])
+                match = compare(part, self.parts[other], strict_qualification=self.strict_qualification)
 
                 if match and match.strength >= minimum:
                     found.append(match)

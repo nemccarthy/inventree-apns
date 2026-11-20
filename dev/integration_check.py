@@ -118,13 +118,25 @@ def main(base: str, token: str, worker: bool = True):
 
     qualified = {row['key']: row for row in found.get(c8, {}).get('rows', [])}.get('qualification', {})
     check(
-        'an AEC-Q200 part can replace the unqualified one',
-        found.get(c8, {}).get('direction') == 'forward'
+        'an AEC-Q200 part is still a candidate for the unqualified one, as a weaker match',
+        found.get(c8, {}).get('direction') == 'both'
+        and found[c8]['strength'] < found[c2]['strength'] - 3
         and (qualified.get('a'), qualified.get('b'), qualified.get('verdict')) == ('None stated', 'AEC-Q200', 'better'),
-        str(found.get(c8, {}).get('direction')) + ' ' + str(qualified),
+        f"{found.get(c8, {}).get('direction')} {found.get(c8, {}).get('strength')} vs {found.get(c2, {}).get('strength')} {qualified}",
     )
     back = {item['other']: item['direction'] for item in api.part(c8)['candidates']}
-    check('and cannot be replaced by it', back.get(c1) == 'reverse' and back.get(c2) == 'reverse', str(back))
+    check('and the other way round', back.get(c1) == 'both' and back.get(c2) == 'both', str(back))
+
+    api.setting('QUALIFICATION_STRICT', True)
+    strict = {item['other']: item['direction'] for item in api.part(c1)['candidates']}
+    back = {item['other']: item['direction'] for item in api.part(c8)['candidates']}
+    check(
+        'held to strictly, the AEC-Q200 part can replace the other and not the reverse',
+        strict.get(c8) == 'forward' and back.get(c1) == 'reverse' and back.get(c2) == 'reverse',
+        f'{strict.get(c8)} {back}',
+    )
+    api.setting('QUALIFICATION_STRICT', False)
+    check('and back again', {item['other']: item['direction'] for item in api.part(c1)['candidates']}.get(c8) == 'both')
 
     rows = {row['key']: row for row in found[c3]['rows']}
     check('the comparison shows why it is one-way', rows['voltage']['verdict'] == 'better' and rows['capacitance']['verdict'] == 'match')

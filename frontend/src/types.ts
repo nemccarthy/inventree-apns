@@ -91,6 +91,7 @@ export interface Settings {
   auto_sync: boolean;
   skip_locked: boolean;
   create_templates: boolean;
+  strict_qualification: boolean;
   digikey: boolean;
   lcsc: boolean;
 }

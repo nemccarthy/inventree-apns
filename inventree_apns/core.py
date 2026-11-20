@@ -59,6 +59,12 @@ class ApnsPlugin(EventMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, Inven
             'validator': bool,
             'default': False,
         },
+        'QUALIFICATION_STRICT': {
+            'name': 'Hold to qualifications',
+            'description': 'Off: a different qualification (AEC-Q200 against none) only lowers the match. On: a qualified part can replace an unqualified one, and never the reverse',
+            'validator': bool,
+            'default': False,
+        },
         'AUTO_SYNC': {
             'name': 'Update BOMs when a link changes',
             'description': 'Add and remove BOM substitutes as soon as a link is made, changed or removed, and when a BOM line is added. Off: only when Sync is pressed',

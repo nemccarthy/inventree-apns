@@ -62,7 +62,7 @@ def _compare(data: Data, a: int, b: int, force: bool = False) -> Match | None:
     if left is None or right is None:
         return None
 
-    return compare(left, right, force=force)
+    return compare(left, right, force=force, strict_qualification=data.catalogue.strict_qualification)
 
 
 def manual_substitutes(lines) -> dict:

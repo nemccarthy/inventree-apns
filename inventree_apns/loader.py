@@ -39,6 +39,7 @@ def plugin_settings(plugin) -> dict:
         'auto_sync': flag('AUTO_SYNC'),
         'skip_locked': flag('SKIP_LOCKED'),
         'create_templates': flag('CREATE_TEMPLATES'),
+        'strict_qualification': flag('QUALIFICATION_STRICT'),
         'digikey': bool(plugin.get_setting('DIGIKEY_CLIENT_ID') and plugin.get_setting('DIGIKEY_CLIENT_SECRET')),
         'lcsc': flag('LCSC_ENABLED'),
     }
@@ -96,7 +97,12 @@ def _category_paths() -> tuple[dict, dict]:
 def load(plugin, use_cache: bool = True) -> Data:
     """Load every part with its parameters and part numbers."""
     settings = plugin_settings(plugin)
-    key = (settings['use_description'], settings['include_assemblies'], settings['include_inactive'])
+    key = (
+        settings['use_description'],
+        settings['include_assemblies'],
+        settings['include_inactive'],
+        settings['strict_qualification'],
+    )
     cached = _cache.get('data')
 
     if use_cache and cached and cached[0] == key and time.time() - cached[1].generated < CACHE_SECONDS:
@@ -219,7 +225,10 @@ def load(plugin, use_cache: bool = True) -> Data:
             eligible.add(pk)
 
     data = Data(
-        catalogue=Catalogue(feature for feature in features if feature.pk in eligible),
+        catalogue=Catalogue(
+            (feature for feature in features if feature.pk in eligible),
+            strict_qualification=settings['strict_qualification'],
+        ),
         info=info,
         eligible=eligible,
         features={feature.pk: feature for feature in features},

@@ -276,19 +276,45 @@ def test_every_parameter_is_listed_in_the_comparison():
     assert {row['label']: (row['a'], row['b']) for row in match.flipped().rows}['Series'] == (None, 'CL')
 
 
-def test_a_qualified_part_can_replace_an_unqualified_one():
-    plain = cap(1)
-    automotive = cap(2, Qualification='AEC-Q200')
+def test_a_different_qualification_lowers_the_strength_and_keeps_the_direction():
+    plain, twin, automotive = cap(1), cap(3), cap(2, Qualification='AEC-Q200')
     match = compare(plain, automotive)
 
-    assert match.direction == 'forward'
+    # Still interchangeable, as far as the matching goes, but a weaker match
+    assert match.direction == 'both'
+    assert match.strength < compare(plain, twin).strength - 3
     row = next(row for row in match.rows if row['key'] == 'qualification')
     assert (row['a'], row['b'], row['verdict']) == ('None stated', 'AEC-Q200', 'better')
 
-    # And not the reverse
     back = compare(automotive, plain)
+    assert back.direction == 'both'
+    assert back.strength == match.strength
+    assert verdicts(back)['qualification'] == 'worse'
+
+
+def test_qualification_does_not_change_a_direction_set_by_a_rating():
+    # The 50 V part can replace the 16 V one, whichever of them is qualified
+    assert compare(cap(1), cap(2, voltage='50V', Qualification='AEC-Q200')).direction == 'forward'
+    assert compare(cap(1, Qualification='AEC-Q200'), cap(2, voltage='50V')).direction == 'forward'
+    assert compare(cap(1, voltage='50V'), cap(2, voltage='16V', Qualification='AEC-Q200')).direction == 'reverse'
+
+
+def test_held_to_strictly_a_qualified_part_replaces_an_unqualified_one():
+    plain, automotive = cap(1), cap(2, Qualification='AEC-Q200')
+    match = compare(plain, automotive, strict_qualification=True)
+
+    assert match.direction == 'forward'
+    assert verdicts(match)['qualification'] == 'better'
+    # And not the reverse
+    back = compare(automotive, plain, strict_qualification=True)
     assert back.direction == 'reverse'
     assert verdicts(back)['qualification'] == 'worse'
+    # AEC-Q200 but a lower voltage rating: neither can replace the other
+    assert compare(cap(1, voltage='50V'), cap(2, voltage='16V', Qualification='AEC-Q200'), strict_qualification=True) is None
+
+    catalogue = Catalogue([plain, automotive], strict_qualification=True)
+    assert catalogue.candidates(1)[0].direction == 'forward'
+    assert Catalogue([plain, automotive]).candidates(1)[0].direction == 'both'
 
 
 def test_the_same_qualification_is_interchangeable():
@@ -296,6 +322,7 @@ def test_the_same_qualification_is_interchangeable():
 
     assert match.direction == 'both'
     assert verdicts(match)['qualification'] == 'match'
+    assert match.strength > compare(cap(1), cap(2, Qualification='AEC-Q200')).strength
     # Parts which state none are not affected
     assert 'qualification' not in verdicts(compare(cap(1), cap(2)))
 
@@ -307,29 +334,33 @@ def test_a_value_which_claims_nothing_is_no_qualification():
     assert 'qualification' not in verdicts(match)
 
 
-def test_qualified_but_worse_elsewhere_is_no_alternative():
-    # AEC-Q200 but a lower voltage rating: neither can replace the other
-    assert compare(cap(1, voltage='50V'), cap(2, voltage='16V', Qualification='AEC-Q200')) is None
-
-
 def test_aec_q100_grades():
     def ic(pk, grade):
         return part(pk, name='LDO 3.3V', Package='SOT-23-5', Voltage___Output='3.3V', Qualification=grade)
 
-    # Grade 1 (-40 to 125) can replace grade 2 (-40 to 105), not the reverse
-    match = compare(ic(1, 'AEC-Q100 Grade 2'), ic(2, 'AEC-Q100 Grade 1'))
-    assert match.direction == 'forward'
-    assert compare(ic(1, 'AEC-Q100 Grade 1'), ic(2, 'AEC-Q100 Grade 1')).direction == 'both'
-    # An AEC part can replace one only marked automotive
-    assert compare(ic(1, 'Automotive'), ic(2, 'AEC-Q100')).direction == 'forward'
+    same = compare(ic(1, 'AEC-Q100 Grade 1'), ic(2, 'AEC-Q100 Grade 1'))
+    assert same.direction == 'both'
+    assert verdicts(same)['qualification'] == 'match'
+
+    # A different grade is a weaker match
+    other = compare(ic(1, 'AEC-Q100 Grade 2'), ic(2, 'AEC-Q100 Grade 1'))
+    assert other.direction == 'both'
+    assert other.strength < same.strength
+    assert verdicts(other)['qualification'] == 'better'
+
+    # Held to strictly: grade 1 (-40 to 125) can replace grade 2 (-40 to
+    # 105), and an AEC part one which is only marked automotive
+    assert compare(ic(1, 'AEC-Q100 Grade 2'), ic(2, 'AEC-Q100 Grade 1'), strict_qualification=True).direction == 'forward'
+    assert compare(ic(1, 'AEC-Q100 Grade 1'), ic(2, 'AEC-Q100 Grade 2'), strict_qualification=True).direction == 'reverse'
+    assert compare(ic(1, 'Automotive'), ic(2, 'AEC-Q100'), strict_qualification=True).direction == 'forward'
 
 
 def test_qualification_is_read_from_the_description():
     described = part(1, name='CAP 100nF 16V X7R 0402 10% AEC-Q200')
-    match = compare(cap(2), described)
 
-    assert match.direction == 'forward'
     assert described.attrs['qualification'].derived
+    assert verdicts(compare(cap(2), described))['qualification'] == 'better'
+    assert compare(cap(2), described, strict_qualification=True).direction == 'forward'
 
 
 def test_a_wider_temperature_range_can_replace_a_narrower_one():
