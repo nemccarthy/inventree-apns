@@ -3,6 +3,14 @@
 All notable changes to this plugin are recorded here.
 Versions follow [semantic versioning](https://semver.org).
 
+## 0.1.1 - 2026-11-23
+
+- Fixed: a part whose name, description or parameter held a part number such
+  as `1N4148` or `2N7002` stopped the overview and every part panel from
+  loading ("KeyError"). Such text is no longer read as a value.
+- A part whose parameters cannot be read for any other reason is now matched
+  on its name alone and reported on the overview, instead of failing the page.
+
 ## 0.1.0 - 2026-11-20
 
 First release. Built and tested against InvenTree 1.7.3.
@@ -20,16 +28,6 @@ First release. Built and tested against InvenTree 1.7.3.
   missing on other BOMs
 - Parameters filled in from DigiKey, LCSC and part descriptions
 - Overview page and an Alternatives panel on part pages
-- Fixed: a part whose name, description or parameter held a part number such
-  as `1N4148` or `2N7002` stopped the overview and every part panel from
-  loading ("KeyError"). Such text is no longer read as a value, and a part
-  which cannot be read for any other reason is now matched on its name alone
-  and reported on the overview, instead of failing the page
-- Qualification (AEC-Q, MIL, automotive grade) is matched on: a difference
-  lowers the match, or, with *Hold to qualifications* turned on, makes it
-  one-way
-- Operating temperature range is matched on: a wider range can replace a
-  narrower one, and not the reverse
 - Comparison of two parts lists every field of both, not only the ones used
   for matching; parts are headed by manufacturer and MPN; two-way and one-way
   link buttons on every candidate
