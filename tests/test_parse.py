@@ -53,9 +53,19 @@ def test_parse_quantity(text, value, unit):
     assert quantity.unit == unit
 
 
-@pytest.mark.parametrize('text', ['', None, 'abc', 'X7R', '-40°C ~ 85°C', 'Surface Mount', '3 x 4'])
+@pytest.mark.parametrize(
+    'text',
+    ['', None, 'abc', 'X7R', '-40°C ~ 85°C', 'Surface Mount', '3 x 4', '1N4148', '2N7002', '4N35', '2N3904', '2P2', '4k7501'],
+)
 def test_not_a_quantity(text):
     assert parse_quantity(text) is None
+
+
+def test_part_numbers_in_a_description_are_not_values():
+    # These used to raise an error, which stopped every part from loading
+    assert derive_attributes('1N4148 switching diode SOD-123') == {'package': 'SOD-123'}
+    assert derive_attributes('MOSFET 2N7002 N-channel 60V SOT-23') == {'package': 'SOT-23', 'voltage': '60V'}
+    assert derive_attributes('MMBT3904 2N3904 NPN') == {}
 
 
 def test_template_unit_is_used_when_the_text_has_none():
@@ -156,3 +166,53 @@ def test_derive_attributes_qualification():
     assert derive_attributes('LDO 3.3V automotive AEC-Q100 grade 1')['qualification'] == 'AEC-Q100 Grade 1'
     # The word alone is too loose to read out of a description
     assert 'qualification' not in derive_attributes('Automotive connector 2 pin')
+
+
+def test_nothing_in_a_part_name_raises_an_error():
+    """Whatever is typed into a name, description or parameter must be survived."""
+    import random
+
+    from inventree_apns.matching import Catalogue, build_features, compare
+
+    random.seed(1123)
+    alphabet = list('0123456789') * 3 + list('RrkKMmuUnNpPfFVvAaWwHhzZΩµμ%±+-/.,~° ()[]:;xXABCDEFGabcdefg')
+    words = ['1N4148', '2N7002', '4N35', '0402', 'SOT-23', 'X7R', 'AEC-Q200', '100nF', '4k7', '±5%', '16V', '1/16W',
+             '-40°C ~ 85°C', '1/0W', '1e999', '10P', '100N', '4U7', '1,00,0', '8-', 'R0', '', '-', 'N/A']
+    names = ['Capacitance', 'Resistance', 'Value', 'Package', 'Tolerance', 'Voltage Rating', 'Dielectric',
+             'Temperature Coefficient', 'Qualification', 'Operating Temperature', 'Voltage - Output', 'Series', '']
+    units = ['', 'F', 'nF', 'ohm', 'kΩ', 'V', '%', 'bogus', 'm', 'M']
+
+    def text():
+        if random.random() < 0.4:
+            return random.choice(words)
+        return ' '.join(
+            random.choice(words + [''.join(random.choice(alphabet) for _ in range(random.randint(1, 9)))])
+            for _ in range(random.randint(1, 5))
+        )
+
+    parts = []
+
+    for pk in range(1, 301):
+        parameters = [
+            {
+                'name': random.choice(names),
+                'data': random.choice([text(), None, 5, 1.5]),
+                'units': random.choice(units),
+                'numeric': random.choice([None, 1.0, float('nan'), float('inf')]),
+            }
+            for _ in range(random.randint(0, 6))
+        ]
+        parts.append(
+            build_features(pk, name=text(), description=text(), category=pk % 3, mpns=[text()], parameters=parameters)
+        )
+        parse_quantity(text(), random.choice(units))
+
+    for index, first in enumerate(parts):
+        for second in parts[index + 1 : index + 40]:
+            for strict in (False, True):
+                match = compare(first, second, force=True, strict_qualification=strict)
+                match.flipped()
+
+    catalogue = Catalogue(parts)
+    catalogue.pairs(limit=50)
+    catalogue.candidates(1)

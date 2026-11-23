@@ -341,6 +341,21 @@ export function ApnsPage({ context }: Readonly<{ context: InvenTreePluginContext
       {actions.error && <Alert color='red'>{actions.error}</Alert>}
       {actions.message && <Alert color='teal'>{actions.message}</Alert>}
 
+      {summary.unreadable > 0 && (
+        <Alert color='orange' title='Some parts could not be read'>
+          <Text size='sm'>
+            The parameters of {plural(summary.unreadable, 'part', 'parts')} could not be read,
+            so {summary.unreadable === 1 ? 'it is' : 'they are'} matched on name alone. The
+            InvenTree error log has the details. First affected:{' '}
+            {data.unreadable
+              .slice(0, 8)
+              .map((pk) => lookup(pk)?.name ?? `part ${pk}`)
+              .join(', ')}
+            .
+          </Text>
+        </Alert>
+      )}
+
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }}>
         <Kpi label='Links' value={String(summary.links)} hint='Pairs of parts linked as alternatives' />
         <Kpi

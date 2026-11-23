@@ -81,8 +81,9 @@ _QUANTITY = re.compile(r'^' + _NUMBER + r'\s*([^\d\s]*(?:\s?[^\d\s]+)?)$')
 # '±5%', '+/-5%', '+-5%', '~5%', '<5%', '+5%'
 _LEADING = re.compile(r'^(?:±|\+\s*/\s*-|\+-|[~<>≤≥+])\s*')
 
-# 4k7, 4R7, 0R, 2n2, 4u7, 1M5
-_INFIX = re.compile(r'^(\d+)([RrkKMmuUµnNpP])(\d*)$')
+# 4k7, 4R7, 0R, 2n2, 4u7, 1M5. Not 1N4148 or 2N7002, which are part numbers:
+# nano and pico are only read in lower case, and at most three digits follow.
+_INFIX = re.compile(r'^(\d+)([RrkKMmuµμnp])(\d{0,3})$')
 
 
 @dataclass(frozen=True)
@@ -169,7 +170,7 @@ def parse_quantity(text, default_unit: str = '') -> Optional[Quantity]:
         if letter in 'Rr':
             return Quantity(value, 'Ω')
 
-        return Quantity(value * PREFIXES['u' if letter in 'Uµ' else letter], '')
+        return Quantity(value * PREFIXES[letter], '')
 
     match = _QUANTITY.match(text)
 

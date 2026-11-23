@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 
 from .matching import Catalogue, build_features, role_for
 from .store import META_KEY, SLUG
+
+logger = logging.getLogger('inventree')
 
 CACHE_SECONDS = 60
 
@@ -56,6 +59,8 @@ class Data:
     eligible: set = field(default_factory=set)
     # Attributes of every part, including those not offered as candidates
     features: dict = field(default_factory=dict)
+    # Parts whose parameters could not be read; they are matched on name alone
+    unreadable: list = field(default_factory=list)
     generated: float = 0.0
     # The strongest pairs of the whole catalogue, worked out once per load
     _pairs: dict = field(default_factory=dict)
@@ -156,6 +161,7 @@ def load(plugin, use_cache: bool = True) -> Data:
     features = []
     info = {}
     eligible = set()
+    unreadable = []
 
     rows = Part.objects.values(
         'pk',
@@ -177,18 +183,27 @@ def load(plugin, use_cache: bool = True) -> Data:
         pk = row['pk']
         params = parameters.get(pk, [])
 
-        feature = build_features(
-            pk,
-            name=row['name'] or '',
-            ipn=row['IPN'] or '',
-            description=row['description'] or '',
-            category=row['category_id'],
-            category_path=paths.get(row['category_id'], ()),
-            mpns=[item['mpn'] for item in mpns.get(pk, [])],
-            parameters=params,
-            active=bool(row['active']),
-            use_description=settings['use_description'],
-        )
+        details = {
+            'name': row['name'] or '',
+            'ipn': row['IPN'] or '',
+            'description': row['description'] or '',
+            'category': row['category_id'],
+            'category_path': paths.get(row['category_id'], ()),
+            'mpns': [item['mpn'] for item in mpns.get(pk, [])],
+            'active': bool(row['active']),
+        }
+
+        try:
+            feature = build_features(
+                pk, parameters=params, use_description=settings['use_description'], **details
+            )
+        except Exception:
+            # One part with a value which cannot be read must not stop every
+            # other part from being matched
+            logger.exception('Alternative Parts: could not read the parameters of part %s', pk)
+            feature = build_features(pk, parameters=[], use_description=False, **details)
+            unreadable.append(pk)
+
         features.append(feature)
 
         # How much the matching has to go on, from real parameters
@@ -232,6 +247,7 @@ def load(plugin, use_cache: bool = True) -> Data:
         info=info,
         eligible=eligible,
         features={feature.pk: feature for feature in features},
+        unreadable=unreadable,
         generated=time.time(),
     )
 

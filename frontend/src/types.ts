@@ -141,6 +141,7 @@ export interface OverviewResult {
     pending: number;
     thin: number;
     bom_lines: number;
+    unreadable: number;
   };
   links: LinkEntry[];
   candidates: Candidate[];
@@ -148,6 +149,7 @@ export interface OverviewResult {
   duplicates: { mpn: string; parts: number[] }[];
   sync: { add: number; remove: number; skipped: number; lines: SyncChange[]; more: number };
   thin: { part: number; used_in: number }[];
+  unreadable: number[];
   usage: Record<string, number>;
   parts: Record<string, PartLabel>;
   settings: Settings;

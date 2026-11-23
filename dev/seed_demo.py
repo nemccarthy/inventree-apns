@@ -180,6 +180,10 @@ def main(base: str, token: str) -> dict:
     part('D1', 'Schottky diode BAT54S', 'Diodes', 'Dual Schottky SOT-23', mpn=('Diodes Inc', 'BAT54S-7-F'), stock=600)
     part('D2', 'BAT54S dual diode', 'Diodes', 'SOT-23 30V 200mA', mpn=('Diodes Inc', 'BAT54S-7-F'), stock=75)
 
+    # Part numbers which look like values ('1N' is not one nanofarad)
+    part('D3', '1N4148W switching diode', 'Diodes', '1N4148 100V 150mA SOD-123', mpn=('Nexperia', '1N4148W'))
+    part('Q1', '2N7002 N-channel MOSFET', 'Diodes', '2N7002 60V 300mA SOT-23', mpn=('Nexperia', '2N7002'))
+
     # Hardware: no parameters, matched on the name alone
     part('H1', 'Screw M2x5 Phillips pan head', 'Hardware')
     part('H2', 'Screw M2x8 Phillips pan head', 'Hardware')

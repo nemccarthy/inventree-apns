@@ -20,6 +20,11 @@ First release. Built and tested against InvenTree 1.7.3.
   missing on other BOMs
 - Parameters filled in from DigiKey, LCSC and part descriptions
 - Overview page and an Alternatives panel on part pages
+- Fixed: a part whose name, description or parameter held a part number such
+  as `1N4148` or `2N7002` stopped the overview and every part panel from
+  loading ("KeyError"). Such text is no longer read as a value, and a part
+  which cannot be read for any other reason is now matched on its name alone
+  and reported on the overview, instead of failing the page
 - Qualification (AEC-Q, MIL, automotive grade) is matched on: a difference
   lowers the match, or, with *Hold to qualifications* turned on, makes it
   one-way

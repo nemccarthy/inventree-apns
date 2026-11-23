@@ -352,6 +352,7 @@ def overview_payload(plugin, use_cache: bool = True) -> dict:
         key=lambda pk: (-usage.get(pk, 0), data.info[pk]['name']),
     )
     mentioned.update(thin[:MAX_THIN])
+    mentioned.update(data.unreadable[:50])
 
     return {
         'version': PLUGIN_VERSION,
@@ -365,6 +366,7 @@ def overview_payload(plugin, use_cache: bool = True) -> dict:
             'pending': plan['add'] + plan['remove'],
             'thin': len(thin),
             'bom_lines': len(lines),
+            'unreadable': len(data.unreadable),
         },
         'links': all_links,
         'candidates': ranked,
@@ -381,6 +383,7 @@ def overview_payload(plugin, use_cache: bool = True) -> dict:
             'more': max(0, len(plan['lines']) - MAX_SYNC_LINES),
         },
         'thin': [{'part': pk, 'used_in': usage.get(pk, 0)} for pk in thin[:MAX_THIN]],
+        'unreadable': data.unreadable[:50],
         'usage': {str(pk): count for pk, count in usage.items() if pk in mentioned},
         'parts': {str(pk): part_label(data, pk) for pk in mentioned},
         'settings': settings,
